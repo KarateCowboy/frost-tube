@@ -23,7 +23,7 @@ impl App {
         // handle messages here
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view<'a>(&'a self) -> Element<'a, Message> {
         column![text("Welcome to Frost Tube")]
             .padding(20)
             .into()
