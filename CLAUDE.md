@@ -26,12 +26,16 @@ The app uses the Iced Elm-like architecture pattern:
 
 Entry point is `src/main.rs` using `iced::application()` with the title "Frost Tube".
 
-## Development Practice
+## Testing
 
-- **Test-driven development (TDD):** Write the test first, then make it pass, whenever possible.
+- **Test-driven development (TDD):** Follow the red-green-refactor cycle. Write a failing test first (red), write the minimum code to make it pass (green), then refactor. Do not skip ahead.
+- **BDD with Cucumber:** Scenarios live in `tests/features/*.feature`. Step definitions are in `tests/steps/`. The test harness is `tests/cucumber.rs`.
+- **Run BDD tests:** `cargo test --test cucumber`
+- **UI testing with `iced_test`:** Use the `Simulator` API for headless widget tree inspection. The `&str` selector finds widgets by visible text and returns `selector::target::Text::Input` for text inputs or `Text::Raw` for plain text — use `matches!` to assert the widget type.
+- **Don't over-abstract:** Keep helpers inline in steps until repetition justifies extraction.
 
 ## Key Details
 
 - Rust edition 2024 — uses the latest edition features
-- Only dependency is `iced = "0.14.0"`
+- Dependencies: `iced = "0.14.0"`, dev-dep `iced_test`
 - Master branch is `master`
