@@ -6,6 +6,7 @@ mod helpers;
 #[derive(Debug, Default, World)]
 pub struct FrostTubeWorld {
     app: App,
+    mock_service: helpers::MockVideoService,
 }
 
 #[tokio::main]
