@@ -1,10 +1,7 @@
 use frost_tube::Message;
 use frost_tube::services::{Video, VideoService};
-use iced::Element;
 use iced_test::selector::{Candidate, Target};
 use iced_test::Simulator;
-use std::future::Future;
-use std::pin::Pin;
 
 pub fn find_button_by_text(ui: &mut Simulator<Message>, text: &str) -> Option<Target> {
     let text_target = ui.find(text).ok()?;
@@ -36,11 +33,11 @@ impl Default for MockVideoService {
             results: vec![
                 Video {
                     title: "Kaze Fuiteru - Official Music Video".into(),
-                    video_id: "abc123".into(),
+                    id: "abc123".into(),
                 },
                 Video {
                     title: "Kaze Fuiteru Live at Budokan".into(),
-                    video_id: "def456".into(),
+                    id: "def456".into(),
                 },
             ],
         }
@@ -48,8 +45,7 @@ impl Default for MockVideoService {
 }
 
 impl VideoService for MockVideoService {
-    fn search(&self, _query: &str) -> Pin<Box<dyn Future<Output = Vec<Video>> + Send + '_>> {
-        let results = self.results.clone();
-        Box::pin(async move { results })
+    async fn search(&self, _query: &str) -> Vec<Video> {
+        self.results.clone()
     }
 }

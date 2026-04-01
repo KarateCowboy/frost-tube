@@ -3,21 +3,28 @@ use crate::helpers;
 
 use cucumber::{given, then, when};
 use frost_tube::*;
+use frost_tube::invidious::InvidiousClient;
 use frost_tube::services::VideoService;
 use iced_test::selector::Text;
 use iced_test::simulator;
+use wiremock::matchers::{method, path, query_param};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[given("I have a new application instance")]
-fn i_have_a_new_application_instance(world: &mut FrostTubeWorld) {
+async fn i_have_a_new_application_instance(world: &mut FrostTubeWorld) {
+    let server = MockServer::start().await;
+    world.client = Some(InvidiousClient::new(&server.uri()));
+    world.mock_server = Some(server);
     world.app = App::default();
 }
+
 #[given(expr = "I am on the {string} page")]
-fn i_am_on_the_page(world: &mut FrostTubeWorld, page_name: String) {
+fn i_am_on_the_page(world: &mut FrostTubeWorld, _page_name: String) {
     assert_eq!(world.app.current_page, Page::Index);
 }
 
 #[then(expr = "the current page should be the {string} page")]
-fn the_current_page_should_be_the_n_page(world: &mut FrostTubeWorld, page_name: String) {
+fn the_current_page_should_be_the_n_page(world: &mut FrostTubeWorld, _page_name: String) {
     assert_eq!(world.app.current_page, Page::Index);
 }
 
@@ -43,6 +50,29 @@ fn i_click_the_button(world: &mut FrostTubeWorld, text: String) {
 
 #[when(expr = "I search {string}")]
 async fn i_search(world: &mut FrostTubeWorld, query: String) {
+    // Set up wiremock to return canned Invidious response
+    let server = world.mock_server.as_ref().expect("MockServer not initialized");
+    let response_body = serde_json::json!([
+        {
+            "type": "video",
+            "title": "Kaze Fuiteru - Official Music Video",
+            "videoId": "abc123"
+        },
+        {
+            "type": "video",
+            "title": "Kaze Fuiteru Live at Budokan",
+            "videoId": "def456"
+        }
+    ]);
+
+    Mock::given(method("GET"))
+        .and(path("/api/v1/search"))
+        .and(query_param("q", &query))
+        .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
+        .mount(server)
+        .await;
+
+    // Drive the UI: type query and click Go
     let mut ui = simulator(world.app.view());
     ui.click("Search").expect("Failed to click search input");
     ui.typewrite(&query);
@@ -56,8 +86,9 @@ async fn i_search(world: &mut FrostTubeWorld, query: String) {
         world.app.update(message);
     }
 
-    // Simulate async search completion via mock service
-    let results = world.mock_service.search(&query).await;
+    // Hit the wiremock server via the real InvidiousClient
+    let client = world.client.as_ref().expect("InvidiousClient not initialized");
+    let results = client.search(&query).await;
     world.app.update(Message::SearchResultsReceived(results));
 }
 
@@ -66,7 +97,7 @@ fn i_should_see_the_search_results_entries(world: &mut FrostTubeWorld) {
     assert!(!world.app.search_results.is_empty(), "Expected search results to be populated");
 
     let mut ui = simulator(world.app.view());
-    for video in &world.mock_service.results {
+    for video in &world.app.search_results {
         assert!(
             ui.find(video.title.as_str()).is_ok(),
             "Expected to find search result: {}",

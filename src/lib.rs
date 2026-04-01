@@ -1,3 +1,4 @@
+pub mod invidious;
 pub mod model;
 pub mod services;
 
