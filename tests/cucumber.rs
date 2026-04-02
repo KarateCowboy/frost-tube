@@ -1,6 +1,5 @@
 use cucumber::World;
 use frost_tube::*;
-use frost_tube::invidious::InvidiousClient;
 mod steps;
 mod helpers;
 
@@ -8,7 +7,6 @@ mod helpers;
 pub struct FrostTubeWorld {
     app: App,
     mock_server: Option<wiremock::MockServer>,
-    client: Option<InvidiousClient>,
 }
 
 impl Default for FrostTubeWorld {
@@ -16,7 +14,6 @@ impl Default for FrostTubeWorld {
         Self {
             app: App::default(),
             mock_server: None,
-            client: None,
         }
     }
 }

@@ -45,7 +45,7 @@ impl Default for MockVideoService {
 }
 
 impl VideoService for MockVideoService {
-    async fn search(&self, _query: &str) -> Vec<Video> {
-        self.results.clone()
+    async fn search(&self, _query: &str) -> Result<Vec<Video>, String> {
+        Ok(self.results.clone())
     }
 }

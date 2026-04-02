@@ -5,6 +5,7 @@ use cucumber::{given, then, when};
 use frost_tube::*;
 use frost_tube::invidious::InvidiousClient;
 use frost_tube::services::VideoService;
+
 use iced_test::selector::Text;
 use iced_test::simulator;
 use wiremock::matchers::{method, path, query_param};
@@ -13,9 +14,10 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 #[given("I have a new application instance")]
 async fn i_have_a_new_application_instance(world: &mut FrostTubeWorld) {
     let server = MockServer::start().await;
-    world.client = Some(InvidiousClient::new(&server.uri()));
+    let mut app = App::default();
+    app.client = InvidiousClient::new(&server.uri());
     world.mock_server = Some(server);
-    world.app = App::default();
+    world.app = app;
 }
 
 #[given(expr = "I am on the {string} page")]
@@ -44,7 +46,7 @@ fn i_click_the_button(world: &mut FrostTubeWorld, text: String) {
         .unwrap_or_else(|| panic!("Expected to find a button with text '{text}'"));
     ui.click(text.as_str()).expect("Failed to click button text");
     for message in ui.into_messages() {
-        world.app.update(message);
+        let _ = world.app.update(message);
     }
 }
 
@@ -72,24 +74,22 @@ async fn i_search(world: &mut FrostTubeWorld, query: String) {
         .mount(server)
         .await;
 
-    // Drive the UI: type query and click Go
     let mut ui = simulator(world.app.view());
     ui.click("Search").expect("Failed to click search input");
     ui.typewrite(&query);
     for message in ui.into_messages() {
-        world.app.update(message);
+        let _ = world.app.update(message);
     }
 
     let mut ui = simulator(world.app.view());
     ui.click("Go").expect("Failed to click Go button");
     for message in ui.into_messages() {
-        world.app.update(message);
+        let _ = world.app.update(message);
     }
 
-    // Hit the wiremock server via the real InvidiousClient
-    let client = world.client.as_ref().expect("InvidiousClient not initialized");
-    let results = client.search(&query).await;
-    world.app.update(Message::SearchResultsReceived(results));
+    // Hit the wiremock server via the app's own InvidiousClient
+    let result = world.app.client.search(&query).await;
+    let _ = world.app.update(Message::SearchResultsReceived(result));
 }
 
 #[then("the I should see the search results entries")]
@@ -104,6 +104,44 @@ fn i_should_see_the_search_results_entries(world: &mut FrostTubeWorld) {
             video.title
         );
     }
+}
+
+#[when("I search and the API returns an error")]
+async fn i_search_and_api_returns_error(world: &mut FrostTubeWorld) {
+    let server = world.mock_server.as_ref().expect("MockServer not initialized");
+
+    Mock::given(method("GET"))
+        .and(path("/api/v1/search"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+        .mount(server)
+        .await;
+
+    let mut ui = simulator(world.app.view());
+    ui.click("Search").expect("Failed to click search input");
+    ui.typewrite("anything");
+    for message in ui.into_messages() {
+        let _ = world.app.update(message);
+    }
+
+    let mut ui = simulator(world.app.view());
+    ui.click("Go").expect("Failed to click Go button");
+    for message in ui.into_messages() {
+        let _ = world.app.update(message);
+    }
+
+    let result = world.app.client.search("anything").await;
+    let _ = world.app.update(Message::SearchResultsReceived(result));
+}
+
+#[then("I should see an error message on screen")]
+fn i_should_see_error_message(world: &mut FrostTubeWorld) {
+    let err = world.app.error_message.as_ref().expect("Expected error_message to be set");
+    let expected_text = format!("Error: {err}");
+    let mut ui = simulator(world.app.view());
+    assert!(
+        ui.find(expected_text.as_str()).is_ok(),
+        "Expected to see '{expected_text}' on screen"
+    );
 }
 
 #[then(expr = "I should be taken to the {string} page")]

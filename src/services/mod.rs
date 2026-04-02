@@ -5,5 +5,5 @@ pub struct Video {
 }
 
 pub trait VideoService: Send + Sync {
-    fn search(&self, query: &str) -> impl std::future::Future<Output = Vec<Video>> + Send;
+    fn search(&self, query: &str) -> impl std::future::Future<Output = Result<Vec<Video>, String>> + Send;
 }

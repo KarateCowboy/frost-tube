@@ -5,3 +5,8 @@ Feature: as a user, I want to search a term via the seach text field and see vid
     Then the current page should be the "Index" page
     When I search "Kaze Fuiteru"
     Then the I should see the search results entries
+
+  Scenario: Search fails gracefully when the API returns an error
+    Given I have a new application instance
+    When I search and the API returns an error
+    Then I should see an error message on screen
