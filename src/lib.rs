@@ -2,7 +2,7 @@ pub mod invidious;
 pub mod model;
 pub mod services;
 
-use iced::widget::{button, column, text, text_input};
+use iced::widget::{button, center, column, container, opaque, stack, text, text_input};
 use iced::{Element, Task, Theme};
 use invidious::InvidiousClient;
 use services::{Video, VideoService};
@@ -21,6 +21,7 @@ pub enum Message {
     SearchQueryChanged(String),
     Search,
     SearchResultsReceived(Result<Vec<Video>, String>),
+    DismissError,
 }
 
 impl App {
@@ -50,21 +51,22 @@ impl App {
                 }
                 Task::none()
             }
+            Message::DismissError => {
+                self.error_message = None;
+                Task::none()
+            }
         }
     }
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
-        match self.current_page {
-            Page::Index => {
-                column![
-                    text("Welcome to Frost Tube"),
-                    text_input("Search", &self.search_query)
-                        .on_input(Message::SearchQueryChanged),
-                    button("Go").on_press(Message::Search)
-                ]
-                .padding(20)
-                .into()
-            }
+        let page = match self.current_page {
+            Page::Index => column![
+                text("Welcome to Frost Tube"),
+                text_input("Search", &self.search_query).on_input(Message::SearchQueryChanged),
+                button("Go").on_press(Message::Search)
+            ]
+            .padding(20)
+            .into(),
             Page::SearchResults => {
                 let mut col = column![text("Search Results")].padding(20);
                 if let Some(err) = &self.error_message {
@@ -75,6 +77,31 @@ impl App {
                 }
                 col.into()
             }
+        };
+        if let Some(err) = &self.error_message {
+            let alert = container(
+                column![
+                    text(err.clone()),
+                    button(text("Dismiss")).on_press(Message::DismissError)
+                ]
+                // .spacing(10)
+                // .padding(20),
+            )
+            .width(iced::Length::Shrink)
+            .style(|_theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgb(
+                    0.2, 0.2, 0.2,
+                ))),
+                border: iced::Border {
+                    radius: 8.0.into(),
+                    width: 1.0,
+                    color: iced::Color::WHITE,
+                },
+                ..Default::default()
+            });
+            stack![page, center(opaque(alert))].into()
+        } else {
+            page
         }
     }
 

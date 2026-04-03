@@ -47,6 +47,13 @@ Public Invidious instances return **403 Forbidden** for API requests from non-br
 - Try a browser-like User-Agent string, or
 - Let the user configure their own Invidious instance URL (some instances allow API access)
 
+## Current work-in-progress
+
+Error alert modal (branch: `search-video`). The alert displays via `stack!` overlay when `error_message` is `Some`. The button rendering is fixed (no spacing/padding on the alert column). Next steps:
+1. Remove the duplicate inline error text from the `SearchResults` page view (`src/lib.rs` lines 72-74) so it doesn't bleed through behind the alert
+2. Decide whether to add a full-screen semi-transparent backdrop layer to the `stack!` for a proper modal look
+3. The Iced `column!` `.spacing()` and `.padding()` caused the button label to render outside the button — left off for now, may revisit once layout is understood better
+
 ## Key Details
 
 - Rust edition 2024 — uses the latest edition features

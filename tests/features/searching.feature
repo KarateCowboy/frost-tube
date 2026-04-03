@@ -9,4 +9,4 @@ Feature: as a user, I want to search a term via the seach text field and see vid
   Scenario: Search fails gracefully when the API returns an error
     Given I have a new application instance
     When I search and the API returns an error
-    Then I should see an error message on screen
+    Then I should see an error message modal

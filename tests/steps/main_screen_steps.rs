@@ -2,9 +2,9 @@ use crate::FrostTubeWorld;
 use crate::helpers;
 
 use cucumber::{given, then, when};
-use frost_tube::*;
 use frost_tube::invidious::InvidiousClient;
 use frost_tube::services::VideoService;
+use frost_tube::*;
 
 use iced_test::selector::Text;
 use iced_test::simulator;
@@ -44,7 +44,8 @@ fn i_click_the_button(world: &mut FrostTubeWorld, text: String) {
     let mut ui = simulator(world.app.view());
     helpers::find_button_by_text(&mut ui, &text)
         .unwrap_or_else(|| panic!("Expected to find a button with text '{text}'"));
-    ui.click(text.as_str()).expect("Failed to click button text");
+    ui.click(text.as_str())
+        .expect("Failed to click button text");
     for message in ui.into_messages() {
         let _ = world.app.update(message);
     }
@@ -53,7 +54,10 @@ fn i_click_the_button(world: &mut FrostTubeWorld, text: String) {
 #[when(expr = "I search {string}")]
 async fn i_search(world: &mut FrostTubeWorld, query: String) {
     // Set up wiremock to return canned Invidious response
-    let server = world.mock_server.as_ref().expect("MockServer not initialized");
+    let server = world
+        .mock_server
+        .as_ref()
+        .expect("MockServer not initialized");
     let response_body = serde_json::json!([
         {
             "type": "video",
@@ -94,7 +98,10 @@ async fn i_search(world: &mut FrostTubeWorld, query: String) {
 
 #[then("the I should see the search results entries")]
 fn i_should_see_the_search_results_entries(world: &mut FrostTubeWorld) {
-    assert!(!world.app.search_results.is_empty(), "Expected search results to be populated");
+    assert!(
+        !world.app.search_results.is_empty(),
+        "Expected search results to be populated"
+    );
 
     let mut ui = simulator(world.app.view());
     for video in &world.app.search_results {
@@ -108,7 +115,10 @@ fn i_should_see_the_search_results_entries(world: &mut FrostTubeWorld) {
 
 #[when("I search and the API returns an error")]
 async fn i_search_and_api_returns_error(world: &mut FrostTubeWorld) {
-    let server = world.mock_server.as_ref().expect("MockServer not initialized");
+    let server = world
+        .mock_server
+        .as_ref()
+        .expect("MockServer not initialized");
 
     Mock::given(method("GET"))
         .and(path("/api/v1/search"))
@@ -135,12 +145,34 @@ async fn i_search_and_api_returns_error(world: &mut FrostTubeWorld) {
 
 #[then("I should see an error message on screen")]
 fn i_should_see_error_message(world: &mut FrostTubeWorld) {
-    let err = world.app.error_message.as_ref().expect("Expected error_message to be set");
+    let err = world
+        .app
+        .error_message
+        .as_ref()
+        .expect("Expected error_message to be set");
     let expected_text = format!("Error: {err}");
     let mut ui = simulator(world.app.view());
     assert!(
         ui.find(expected_text.as_str()).is_ok(),
         "Expected to see '{expected_text}' on screen"
+    );
+}
+
+#[then("I should see an error message modal")]
+fn i_should_see_an_error_message_modal(world: &mut FrostTubeWorld) {
+    let err_message = world
+        .app
+        .error_message
+        .as_ref()
+        .expect("Expected an error message to be set, but it was not");
+    let mut ui = simulator(world.app.view());
+    assert!(
+        ui.find(err_message.as_str()).is_ok(),
+        "Expected alert to display error: {err_message}"
+    );
+    assert!(
+        matches!(ui.find("Dismiss"), Ok(Text::Raw { .. })),
+        "Expected modal to have a 'Dismiss' button"
     );
 }
 
