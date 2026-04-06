@@ -69,37 +69,14 @@ impl App {
             .into(),
             Page::SearchResults => {
                 let mut col = column![text("Search Results")].padding(20);
-                if let Some(err) = &self.error_message {
-                    col = col.push(text(format!("Error: {err}")));
-                }
                 for video in &self.search_results {
                     col = col.push(text(&video.title));
                 }
-                col.into()
+                col.height(iced::Length::Fill).into()
             }
         };
         if let Some(err) = &self.error_message {
-            let alert = container(
-                column![
-                    text(err.clone()),
-                    button(text("Dismiss")).on_press(Message::DismissError)
-                ]
-                // .spacing(10)
-                // .padding(20),
-            )
-            .width(iced::Length::Shrink)
-            .style(|_theme| container::Style {
-                background: Some(iced::Background::Color(iced::Color::from_rgb(
-                    0.2, 0.2, 0.2,
-                ))),
-                border: iced::Border {
-                    radius: 8.0.into(),
-                    width: 1.0,
-                    color: iced::Color::WHITE,
-                },
-                ..Default::default()
-            });
-            stack![page, center(opaque(alert))].into()
+            stack![page, error_modal(err)].into()
         } else {
             page
         }
@@ -108,6 +85,32 @@ impl App {
     pub fn theme(&self) -> Theme {
         Theme::Dark
     }
+}
+
+fn error_modal<'a>(error_message: &'a str) -> Element<'a, Message> {
+    let alert = container(
+        column![
+            text(error_message),
+            button(text("Dismiss")).on_press(Message::DismissError)
+        ], // .spacing(10)
+           // .padding(20),
+    )
+    .width(iced::Length::Shrink)
+    .style(|_theme| container::Style {
+        background: Some(iced::Background::Color(iced::Color::from_rgb(
+            0.2, 0.2, 0.2,
+        ))),
+        border: iced::Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: iced::Color::WHITE,
+        },
+        ..Default::default()
+    });
+    return opaque(container(alert).center_x(iced::Length::Fill).center_y(iced::Length::Fill).style(|_theme| container::Style {
+      background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0,  0.5))),
+        ..Default::default()
+    })).into();
 }
 
 #[derive(Debug, Default, PartialEq)]
