@@ -72,7 +72,9 @@ impl App {
                 for video in &self.search_results {
                     col = col.push(text(&video.title));
                 }
-                col.height(iced::Length::Fill).into()
+                col.height(iced::Length::Fill)
+                    .width(iced::Length::Fill)
+                    .into()
             }
         };
         if let Some(err) = &self.error_message {
@@ -92,8 +94,8 @@ fn error_modal<'a>(error_message: &'a str) -> Element<'a, Message> {
         column![
             text(error_message),
             button(text("Dismiss")).on_press(Message::DismissError)
-        ], // .spacing(10)
-           // .padding(20),
+        ]
+        .align_x(iced::Alignment::Center),
     )
     .width(iced::Length::Shrink)
     .style(|_theme| container::Style {
@@ -107,10 +109,18 @@ fn error_modal<'a>(error_message: &'a str) -> Element<'a, Message> {
         },
         ..Default::default()
     });
-    return opaque(container(alert).center_x(iced::Length::Fill).center_y(iced::Length::Fill).style(|_theme| container::Style {
-      background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0,  0.5))),
-        ..Default::default()
-    })).into();
+    return opaque(
+        container(alert)
+            .center_x(iced::Length::Fill)
+            .center_y(iced::Length::Fill)
+            .style(|_theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(
+                    0.0, 0.0, 0.0, 0.5,
+                ))),
+                ..Default::default()
+            }),
+    )
+    .into();
 }
 
 #[derive(Debug, Default, PartialEq)]

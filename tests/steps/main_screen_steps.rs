@@ -102,6 +102,7 @@ fn i_should_see_the_search_results_entries(world: &mut FrostTubeWorld) {
         !world.app.search_results.is_empty(),
         "Expected search results to be populated"
     );
+    assert_eq!(world.app.search_results.len(), 2);
 
     let mut ui = simulator(world.app.view());
     for video in &world.app.search_results {
