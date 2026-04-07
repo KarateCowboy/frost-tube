@@ -20,6 +20,7 @@ pub enum Message {
     SearchQueryChanged(String),
     Search,
     SearchResultsReceived(Result<Vec<Video>, String>),
+    ViewVideo(String),
     DismissError,
 }
 
@@ -62,6 +63,10 @@ impl App {
                 }
                 Task::none()
             }
+            Message::ViewVideo(video_id) => {
+                self.current_page = Page::VideoDetail { video_id };
+                Task::none()
+            }
             Message::DismissError => {
                 self.error_message = None;
                 Task::none()
@@ -81,9 +86,25 @@ impl App {
             Page::SearchResults => {
                 let mut col = column![text("Search Results")].padding(20);
                 for video in &self.search_results {
-                    col = col.push(text(&video.title));
+                    col = col.push(
+                        button(text(&video.title))
+                            .on_press(Message::ViewVideo(video.id.clone())),
+                    );
                 }
                 col.height(iced::Length::Fill)
+                    .width(iced::Length::Fill)
+                    .into()
+            }
+            Page::VideoDetail { ref video_id } => {
+                let title = self
+                    .search_results
+                    .iter()
+                    .find(|v| v.id == *video_id)
+                    .map(|v| v.title.as_str())
+                    .unwrap_or("Unknown Video");
+                column![text(title)]
+                    .padding(20)
+                    .height(iced::Length::Fill)
                     .width(iced::Length::Fill)
                     .into()
             }
@@ -139,4 +160,5 @@ pub enum Page {
     #[default]
     Index,
     SearchResults,
+    VideoDetail { video_id: String },
 }

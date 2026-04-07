@@ -196,14 +196,39 @@ fn i_should_see_an_error_message_modal(world: &mut FrostTubeWorld) {
     );
 }
 
+#[when(expr = "I click the video {string}")]
+fn i_click_the_video(world: &mut FrostTubeWorld, title: String) {
+    let mut ui = simulator(world.app.view());
+    ui.click(title.as_str())
+        .unwrap_or_else(|_| panic!("Expected to find clickable video '{title}'"));
+    for message in ui.into_messages() {
+        let _ = world.app.update(message);
+    }
+}
+
 #[then(expr = "I should be taken to the {string} page")]
 fn i_should_be_taken_to_page(world: &mut FrostTubeWorld, page_name: String) {
     let expected = match page_name.as_str() {
         "Search Results" => Page::SearchResults,
         "Index" => Page::Index,
+        "Video Detail" => Page::VideoDetail { video_id: String::new() },
         _ => panic!("Unknown page: {page_name}"),
     };
-    assert_eq!(world.app.current_page, expected);
+    assert!(
+        std::mem::discriminant(&world.app.current_page) == std::mem::discriminant(&expected),
+        "Expected page {:?}, got {:?}",
+        expected,
+        world.app.current_page
+    );
+}
+
+#[then(expr = "I should see the video title {string}")]
+fn i_should_see_the_video_title(world: &mut FrostTubeWorld, title: String) {
+    let mut ui = simulator(world.app.view());
+    assert!(
+        ui.find(title.as_str()).is_ok(),
+        "Expected to see video title '{title}' on the detail page"
+    );
 }
 
 fn innertube_search_fixture() -> serde_json::Value {
