@@ -13,6 +13,15 @@ Feature: as a user, I want to search a term via the seach text field and see vid
     Then I should be taken to the "Video Detail" page
     And I should see the video title "Kaze Fuiteru - Official Music Video"
 
+  Scenario: Back button on video detail returns to search results
+    Given I have a new application instance
+    When I search "Kaze Fuiteru"
+    And I click the video "Kaze Fuiteru - Official Music Video"
+    Then I should be taken to the "Video Detail" page
+    When I click the button "Back"
+    Then I should be taken to the "Search Results" page
+    And the I should see the search results entries
+
   Scenario: Search fails gracefully when the API returns an error
     Given I have a new application instance
     When I search and the API returns an error

@@ -21,6 +21,7 @@ pub enum Message {
     Search,
     SearchResultsReceived(Result<Vec<Video>, String>),
     ViewVideo(String),
+    Back,
     DismissError,
 }
 
@@ -67,6 +68,10 @@ impl App {
                 self.current_page = Page::VideoDetail { video_id };
                 Task::none()
             }
+            Message::Back => {
+                self.current_page = Page::SearchResults;
+                Task::none()
+            }
             Message::DismissError => {
                 self.error_message = None;
                 Task::none()
@@ -102,11 +107,14 @@ impl App {
                     .find(|v| v.id == *video_id)
                     .map(|v| v.title.as_str())
                     .unwrap_or("Unknown Video");
-                column![text(title)]
-                    .padding(20)
-                    .height(iced::Length::Fill)
-                    .width(iced::Length::Fill)
-                    .into()
+                column![
+                    button("Back").on_press(Message::Back),
+                    text(title)
+                ]
+                .padding(20)
+                .height(iced::Length::Fill)
+                .width(iced::Length::Fill)
+                .into()
             }
         };
         if let Some(err) = &self.error_message {
