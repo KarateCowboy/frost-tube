@@ -197,12 +197,36 @@ fn i_should_see_an_error_message_modal(world: &mut FrostTubeWorld) {
 }
 
 #[when(expr = "I click the video {string}")]
-fn i_click_the_video(world: &mut FrostTubeWorld, title: String) {
+async fn i_click_the_video(world: &mut FrostTubeWorld, title: String) {
+    let server = world
+        .mock_server
+        .as_ref()
+        .expect("MockServer not initialized");
+
+    Mock::given(method("POST"))
+        .and(path("/youtubei/v1/player"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(innertube_player_fixture()),
+        )
+        .mount(server)
+        .await;
+
     let mut ui = simulator(world.app.view());
     ui.click(title.as_str())
         .unwrap_or_else(|_| panic!("Expected to find clickable video '{title}'"));
     for message in ui.into_messages() {
         let _ = world.app.update(message);
+    }
+
+    // Simulator doesn't execute Tasks — manually fetch and send the detail
+    if let Page::VideoDetail { ref video_id } = world.app.current_page {
+        let result = world
+            .app
+            .client
+            .get_video(video_id)
+            .await
+            .map_err(|e| e.to_string());
+        let _ = world.app.update(Message::VideoDetailReceived(result));
     }
 }
 
@@ -229,6 +253,24 @@ fn i_should_see_the_video_title(world: &mut FrostTubeWorld, title: String) {
         ui.find(title.as_str()).is_ok(),
         "Expected to see video title '{title}' on the detail page"
     );
+}
+
+fn innertube_player_fixture() -> serde_json::Value {
+    serde_json::json!({
+        "videoDetails": {
+            "videoId": "abc123",
+            "title": "Kaze Fuiteru - Official Music Video",
+            "lengthSeconds": "289",
+            "channelId": "UCtest123",
+            "shortDescription": "A classic anime opening.",
+            "viewCount": "1000000",
+            "author": "TestChannel",
+            "isLiveContent": false,
+            "thumbnail": {
+                "thumbnails": [{ "url": "https://example.com/thumb.jpg", "width": 480, "height": 270 }]
+            }
+        }
+    })
 }
 
 fn innertube_search_fixture() -> serde_json::Value {

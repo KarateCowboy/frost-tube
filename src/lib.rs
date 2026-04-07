@@ -1,7 +1,7 @@
 pub mod model;
 pub mod services;
 
-use iced::widget::{button, center, column, container, opaque, stack, text, text_input};
+use iced::widget::{button, column, container, opaque, stack, text, text_input};
 use iced::{Element, Task, Theme};
 use rectum::InnerTubeClient;
 use services::Video;
@@ -11,6 +11,7 @@ pub struct App {
     pub current_page: Page,
     pub search_query: String,
     pub search_results: Vec<Video>,
+    pub video_detail: Option<rectum::VideoDetails>,
     pub error_message: Option<String>,
     pub client: InnerTubeClient,
 }
@@ -21,6 +22,7 @@ pub enum Message {
     Search,
     SearchResultsReceived(Result<Vec<Video>, String>),
     ViewVideo(String),
+    VideoDetailReceived(Result<rectum::VideoDetails, String>),
     Back,
     DismissError,
 }
@@ -65,7 +67,23 @@ impl App {
                 Task::none()
             }
             Message::ViewVideo(video_id) => {
-                self.current_page = Page::VideoDetail { video_id };
+                self.current_page = Page::VideoDetail { video_id: video_id.clone() };
+                self.video_detail = None;
+                let client = self.client.clone();
+                Task::perform(
+                    async move {
+                        let rt = tokio::runtime::Runtime::new().unwrap();
+                        rt.block_on(client.get_video(&video_id))
+                            .map_err(|e| e.to_string())
+                    },
+                    Message::VideoDetailReceived,
+                )
+            }
+            Message::VideoDetailReceived(result) => {
+                match result {
+                    Ok(details) => self.video_detail = Some(details),
+                    Err(e) => self.error_message = Some(e),
+                }
                 Task::none()
             }
             Message::Back => {
@@ -100,21 +118,24 @@ impl App {
                     .width(iced::Length::Fill)
                     .into()
             }
-            Page::VideoDetail { ref video_id } => {
-                let title = self
-                    .search_results
-                    .iter()
-                    .find(|v| v.id == *video_id)
-                    .map(|v| v.title.as_str())
-                    .unwrap_or("Unknown Video");
-                column![
-                    button("Back").on_press(Message::Back),
-                    text(title)
-                ]
-                .padding(20)
-                .height(iced::Length::Fill)
-                .width(iced::Length::Fill)
-                .into()
+            Page::VideoDetail { .. } => {
+                let mut col = column![button("Back").on_press(Message::Back)].padding(20);
+
+                if let Some(ref detail) = self.video_detail {
+                    col = col.push(text(&detail.title).size(24));
+                    col = col.push(text(format!("{} • {} views • {}",
+                        &detail.author,
+                        format_view_count(detail.view_count),
+                        format_duration(detail.length_seconds),
+                    )).size(14));
+                    col = col.push(text(&detail.description).size(12));
+                } else {
+                    col = col.push(text("Loading..."));
+                }
+
+                col.height(iced::Length::Fill)
+                    .width(iced::Length::Fill)
+                    .into()
             }
         };
         if let Some(err) = &self.error_message {
@@ -161,6 +182,22 @@ fn error_modal<'a>(error_message: &'a str) -> Element<'a, Message> {
             }),
     )
     .into();
+}
+
+fn format_view_count(count: u64) -> String {
+    if count >= 1_000_000 {
+        format!("{:.1}M", count as f64 / 1_000_000.0)
+    } else if count >= 1_000 {
+        format!("{:.1}K", count as f64 / 1_000.0)
+    } else {
+        count.to_string()
+    }
+}
+
+fn format_duration(seconds: u64) -> String {
+    let mins = seconds / 60;
+    let secs = seconds % 60;
+    format!("{mins}:{secs:02}")
 }
 
 #[derive(Debug, Default, PartialEq)]
