@@ -5,13 +5,24 @@ edition = "2024"
 
 [dependencies]
 iced = "0.14.0"
-invidious = { version = "0.7.8", features = ["reqwest_async"] }
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [dev-dependencies]
  cucumber = "0.22.1"
 iced_test = "0.14.0"
 tokio = { version = "1.50.0", features = ["rt-multi-thread", "macros"] }
+wiremock = "0.6"
 
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
 
 [[test]]
 name = "cucumber"
