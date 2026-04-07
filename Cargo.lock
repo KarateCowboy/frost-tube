@@ -1265,8 +1265,7 @@ dependencies = [
  "cucumber",
  "iced",
  "iced_test",
- "reqwest",
- "serde",
+ "rectum",
  "serde_json",
  "tokio",
  "wiremock",
@@ -3324,6 +3323,16 @@ dependencies = [
  "bytemuck",
  "core_maths",
  "font-types",
+]
+
+[[package]]
+name = "rectum"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

@@ -1,11 +1,10 @@
-pub mod invidious;
 pub mod model;
 pub mod services;
 
 use iced::widget::{button, center, column, container, opaque, stack, text, text_input};
 use iced::{Element, Task, Theme};
-use invidious::InvidiousClient;
-use services::{Video, VideoService};
+use rectum::InnerTubeClient;
+use services::Video;
 
 #[derive(Default, Debug)]
 pub struct App {
@@ -13,7 +12,7 @@ pub struct App {
     pub search_query: String,
     pub search_results: Vec<Video>,
     pub error_message: Option<String>,
-    pub client: InvidiousClient,
+    pub client: InnerTubeClient,
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +39,18 @@ impl App {
                     async move {
                         let rt = tokio::runtime::Runtime::new().unwrap();
                         rt.block_on(client.search(&query))
+                            .map(|results| {
+                                results
+                                    .items
+                                    .into_iter()
+                                    .filter_map(|item| match item {
+                                        rectum::SearchItem::Video(v) => {
+                                            Some(Video { title: v.title, id: v.id })
+                                        }
+                                    })
+                                    .collect()
+                            })
+                            .map_err(|e| e.to_string())
                     },
                     Message::SearchResultsReceived,
                 )

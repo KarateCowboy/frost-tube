@@ -1,0 +1,3 @@
+[submodule "rectum"]
+	path = rectum
+	url = git@github.com:karatecowboy/rectum.git

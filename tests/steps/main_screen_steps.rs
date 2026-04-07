@@ -2,20 +2,20 @@ use crate::FrostTubeWorld;
 use crate::helpers;
 
 use cucumber::{given, then, when};
-use frost_tube::invidious::InvidiousClient;
-use frost_tube::services::VideoService;
+use frost_tube::services::Video;
 use frost_tube::*;
+use rectum::InnerTubeClient;
 
 use iced_test::selector::Text;
 use iced_test::simulator;
-use wiremock::matchers::{method, path, query_param};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[given("I have a new application instance")]
 async fn i_have_a_new_application_instance(world: &mut FrostTubeWorld) {
     let server = MockServer::start().await;
     let mut app = App::default();
-    app.client = InvidiousClient::new(&server.uri());
+    app.client = InnerTubeClient::builder().base_url(server.uri()).build();
     world.mock_server = Some(server);
     world.app = app;
 }
@@ -53,27 +53,15 @@ fn i_click_the_button(world: &mut FrostTubeWorld, text: String) {
 
 #[when(expr = "I search {string}")]
 async fn i_search(world: &mut FrostTubeWorld, query: String) {
-    // Set up wiremock to return canned Invidious response
     let server = world
         .mock_server
         .as_ref()
         .expect("MockServer not initialized");
-    let response_body = serde_json::json!([
-        {
-            "type": "video",
-            "title": "Kaze Fuiteru - Official Music Video",
-            "videoId": "abc123"
-        },
-        {
-            "type": "video",
-            "title": "Kaze Fuiteru Live at Budokan",
-            "videoId": "def456"
-        }
-    ]);
 
-    Mock::given(method("GET"))
-        .and(path("/api/v1/search"))
-        .and(query_param("q", &query))
+    let response_body = innertube_search_fixture();
+
+    Mock::given(method("POST"))
+        .and(path("/youtubei/v1/search"))
         .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
         .mount(server)
         .await;
@@ -91,8 +79,23 @@ async fn i_search(world: &mut FrostTubeWorld, query: String) {
         let _ = world.app.update(message);
     }
 
-    // Hit the wiremock server via the app's own InvidiousClient
-    let result = world.app.client.search(&query).await;
+    let result = world
+        .app
+        .client
+        .search(&query)
+        .await
+        .map(|results| {
+            results
+                .items
+                .into_iter()
+                .filter_map(|item| match item {
+                    rectum::SearchItem::Video(v) => {
+                        Some(Video { title: v.title, id: v.id })
+                    }
+                })
+                .collect()
+        })
+        .map_err(|e| e.to_string());
     let _ = world.app.update(Message::SearchResultsReceived(result));
 }
 
@@ -121,8 +124,8 @@ async fn i_search_and_api_returns_error(world: &mut FrostTubeWorld) {
         .as_ref()
         .expect("MockServer not initialized");
 
-    Mock::given(method("GET"))
-        .and(path("/api/v1/search"))
+    Mock::given(method("POST"))
+        .and(path("/youtubei/v1/search"))
         .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
         .mount(server)
         .await;
@@ -140,7 +143,23 @@ async fn i_search_and_api_returns_error(world: &mut FrostTubeWorld) {
         let _ = world.app.update(message);
     }
 
-    let result = world.app.client.search("anything").await;
+    let result = world
+        .app
+        .client
+        .search("anything")
+        .await
+        .map(|results| {
+            results
+                .items
+                .into_iter()
+                .filter_map(|item| match item {
+                    rectum::SearchItem::Video(v) => {
+                        Some(Video { title: v.title, id: v.id })
+                    }
+                })
+                .collect()
+        })
+        .map_err(|e| e.to_string());
     let _ = world.app.update(Message::SearchResultsReceived(result));
 }
 
@@ -185,4 +204,42 @@ fn i_should_be_taken_to_page(world: &mut FrostTubeWorld, page_name: String) {
         _ => panic!("Unknown page: {page_name}"),
     };
     assert_eq!(world.app.current_page, expected);
+}
+
+fn innertube_search_fixture() -> serde_json::Value {
+    serde_json::json!({
+        "estimatedResults": "2",
+        "contents": {
+            "twoColumnSearchResultsRenderer": {
+                "primaryContents": {
+                    "sectionListRenderer": {
+                        "contents": [{
+                            "itemSectionRenderer": {
+                                "contents": [
+                                    {
+                                        "videoRenderer": {
+                                            "videoId": "abc123",
+                                            "title": { "runs": [{ "text": "Kaze Fuiteru - Official Music Video" }] },
+                                            "lengthText": { "simpleText": "4:49" },
+                                            "viewCountText": { "simpleText": "1,000 views" },
+                                            "ownerText": { "runs": [{ "text": "TestChannel" }] }
+                                        }
+                                    },
+                                    {
+                                        "videoRenderer": {
+                                            "videoId": "def456",
+                                            "title": { "runs": [{ "text": "Kaze Fuiteru Live at Budokan" }] },
+                                            "lengthText": { "simpleText": "6:12" },
+                                            "viewCountText": { "simpleText": "500 views" },
+                                            "ownerText": { "runs": [{ "text": "TestChannel2" }] }
+                                        }
+                                    }
+                                ]
+                            }
+                        }]
+                    }
+                }
+            }
+        }
+    })
 }
