@@ -18,21 +18,25 @@ Frost Tube is a desktop GUI application built with Rust (2024 edition) and the [
 
 ## Architecture
 
-The app uses the Iced Elm-like architecture pattern:
+The app uses the Iced Elm-like architecture pattern with **page-based modules**:
 
-- **`App` struct** — holds application state
-- **`Message` enum** — defines all UI/async events
-- **`App::update()`** — handles messages and mutates state
-- **`App::view()`** — renders the UI from current state
+- **`App` struct** (`src/lib.rs`) — holds application state, acts as a **router** dispatching to page modules
+- **`Message` enum** (`src/lib.rs`) — top-level enum with one variant per page wrapping that page's `Message` type, plus global messages like `DismissError`
+- **`App::update()`** — routes messages to the appropriate page's `update()` function
+- **`App::view()`** — routes to the appropriate page's `view()` function
 - **`App::theme()`** — returns `Theme::Dark`
 
 Entry point is `src/main.rs` using `iced::application()` with the title "Frost Tube".
 
-### Pages
+### Page modules (`src/pages/`)
 
-- **`Page::Index`** — search input + Go button
-- **`Page::SearchResults`** — clickable list of video results
-- **`Page::VideoDetail`** — video metadata (title, author, views, duration, description) with Back button
+Each page is a self-contained module with `view()` and `update()` functions and its own `Message` enum:
+
+- **`pages::index`** — search input + Go button
+- **`pages::search_results`** — clickable list of video results
+- **`pages::video_detail`** — video metadata + video player
+
+Page update functions take `&mut App` and their own `Message`, return `Task<crate::Message>` (top-level). Pages handle their own navigation by mutating `app.current_page` directly.
 
 ### Async pattern
 
@@ -78,12 +82,19 @@ See `rectum/ROADMAP.md` for details.
 - Back navigation from detail to results
 - Error modal on API failure
 
-**Next up: Video playback**
+**In progress: Video playback**
 
-The plan is to use `iced_video_player` (v0.6, targets Iced 0.14) backed by GStreamer for embedded video playback. This requires:
-1. `brew install gstreamer` on the dev machine
-2. Rectum M4 (streaming URL resolution) to get playable URLs
-3. Pass streaming URLs to `iced_video_player::Video::new(url)`
+Using `iced_video_player` v0.6 (targets Iced 0.14) backed by GStreamer for embedded video playback.
+
+- GStreamer 1.28.2 installed via `brew install gstreamer` (includes all plugins)
+- `iced_video_player = "0.6"` and `url = "2"` added to Cargo.toml
+- iced features updated: `features = ["image", "advanced", "wgpu"]`
+- `cargo check` passes — GStreamer links correctly via pkg-config
+
+**Remaining for basic playback:**
+1. Refactor lib.rs into page modules (in progress)
+2. Wire up `iced_video_player::VideoPlayer` widget in video_detail page
+3. Rectum M4 (streaming URL resolution) — currently using hardcoded URLs for testing
 
 GStreamer was chosen over libmpv (no Iced integration, OpenGL-only on macOS) and libvlc (Rust bindings unmaintained since 2018). `iced_video_player` is the only maintained Iced video widget — it uses GStreamer's appsink with YUV→RGB GPU shaders.
 
@@ -92,6 +103,6 @@ See `ROADMAP.md` for the full feature parity roadmap targeting FreeTube.
 ## Key Details
 
 - Rust edition 2024
-- Dependencies: `iced = "0.14.0"`, `rectum` (path submodule), `tokio`
+- Dependencies: `iced = { version = "0.14.0", features = ["image", "advanced", "wgpu"] }`, `iced_video_player = "0.6"`, `url = "2"`, `rectum` (path submodule), `tokio`
 - Dev deps: `cucumber`, `iced_test`, `wiremock`, `serde_json`
 - Master branch is `master`

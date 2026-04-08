@@ -14,6 +14,7 @@ pub struct App {
     pub video_detail: Option<rectum::VideoDetails>,
     pub error_message: Option<String>,
     pub client: InnerTubeClient,
+    pub video: Option<iced_video_player::Video>
 }
 
 #[derive(Debug, Clone)]

@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-iced = "0.14.0"
+iced = { version = "0.14.0", features = ["image", "advanced", "wgpu"]}
 tokio = { version = "1", features = ["rt-multi-thread"] }
 rectum = { path = "rectum" }
+url = "2"
+iced_video_player = "0.6"
 
 [dev-dependencies]
 cucumber = "0.22.1"
