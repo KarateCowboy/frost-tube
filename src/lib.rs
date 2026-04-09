@@ -1,11 +1,12 @@
 pub mod model;
 pub mod services;
+pub mod pages;
 
 use iced::widget::{button, column, container, opaque, stack, text, text_input};
 use iced::{Element, Task, Theme};
 use rectum::InnerTubeClient;
 use services::Video;
-
+use pages::index::{*};
 #[derive(Default, Debug)]
 pub struct App {
     pub current_page: Page,
@@ -19,9 +20,7 @@ pub struct App {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    SearchQueryChanged(String),
-    Search,
-    SearchResultsReceived(Result<Vec<Video>, String>),
+    Index(pages::index::Message),
     ViewVideo(String),
     VideoDetailReceived(Result<rectum::VideoDetails, String>),
     Back,
@@ -31,41 +30,8 @@ pub enum Message {
 impl App {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::SearchQueryChanged(query) => {
-                self.search_query = query;
-                Task::none()
-            }
-            Message::Search => {
-                self.current_page = Page::SearchResults;
-                self.error_message = None;
-                let client = self.client.clone();
-                let query = self.search_query.clone();
-                Task::perform(
-                    async move {
-                        let rt = tokio::runtime::Runtime::new().unwrap();
-                        rt.block_on(client.search(&query))
-                            .map(|results| {
-                                results
-                                    .items
-                                    .into_iter()
-                                    .filter_map(|item| match item {
-                                        rectum::SearchItem::Video(v) => {
-                                            Some(Video { title: v.title, id: v.id })
-                                        }
-                                    })
-                                    .collect()
-                            })
-                            .map_err(|e| e.to_string())
-                    },
-                    Message::SearchResultsReceived,
-                )
-            }
-            Message::SearchResultsReceived(result) => {
-                match result {
-                    Ok(videos) => self.search_results = videos,
-                    Err(e) => self.error_message = Some(e),
-                }
-                Task::none()
+            Message::Index(msg) => {
+                pages::index::update(self, msg)
             }
             Message::ViewVideo(video_id) => {
                 self.current_page = Page::VideoDetail { video_id: video_id.clone() };
@@ -100,13 +66,7 @@ impl App {
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
         let page = match self.current_page {
-            Page::Index => column![
-                text("Welcome to Frost Tube"),
-                text_input("Search", &self.search_query).on_input(Message::SearchQueryChanged),
-                button("Go").on_press(Message::Search)
-            ]
-            .padding(20)
-            .into(),
+            Page::Index => pages::index::view(self),
             Page::SearchResults => {
                 let mut col = column![text("Search Results")].padding(20);
                 for video in &self.search_results {
